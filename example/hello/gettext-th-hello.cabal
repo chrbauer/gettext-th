@@ -34,3 +34,4 @@ executable gettext-th-hello
                     , text
     hs-source-dirs:   app
     default-language: Haskell2010
+    ghc-options: -ddump-splices

@@ -17,7 +17,7 @@ gettext-th will use IO at compile time and will write a file.
 
 See for an example in example/hello.
 
-To use gettext-th in youp app use it and compile it. It will fail, but it will create the file po/messages.pot.
+To use gettext-th in your app use it and compile it. It will fail, but it will create the file po/messages.pot.
 Run in the po folder:
 
 ```sh
@@ -25,7 +25,7 @@ msginit
 msgfmt en_US.po
 ```
 
-With that the program compiles.
+With that the program compiles. And you can update en_US.po again.
 
 Now copy en_US.po to de_DE.po, translate the messages and run `msgfmt de_DE.po`.
 If you recompile (maybe run cabal clean first) the output of your app is in german.

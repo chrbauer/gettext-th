@@ -19,5 +19,13 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 #: app/Main.hs:0
+msgid "It it also possible to define multiple messages\nin one quasiquotation. With leading whitespace it is possible to\ndefine multiline texts."
+msgstr "It it also possible to define multiple messages\nin one quasiquotation. With leading whitespace it is possible to\ndefine multiline texts."
+
+#: app/Main.hs:0
+msgid "The quasi quotation will generate for each message a binding with the given name."
+msgstr "The quasi quotation will generate for each message a binding with the given name."
+
+#: app/Main.hs:0
 msgid "Hello, Haskell"
-msgstr ""
+msgstr "Hello, Haskell"
