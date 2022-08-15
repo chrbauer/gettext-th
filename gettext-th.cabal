@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               gettext-th
-version:            0.1.0.1
+version:            0.1.0.2
 
 synopsis: gettext-th can internationalise a haskell program without runtime dependencies
 

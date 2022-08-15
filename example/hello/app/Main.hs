@@ -6,7 +6,7 @@ module Main where
 import I18N.Gettext.TH
 import qualified Data.Text.IO as T
 
-[gettexts|
+[__|
 explain: It it also possible to define multiple messages
   in one quasiquotation. With leading whitespace it is possible to
   define multiline texts.

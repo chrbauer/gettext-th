@@ -1,5 +1,5 @@
 module I18N.Gettext.TH
-(gettext, __, gettexts)
+(gettext, __)
 where
 
 import Language.Haskell.TH
@@ -30,8 +30,8 @@ potFileName :: FilePath
 potFileName = "po/messages.pot"
 
 
-poFileName :: FilePath
-poFileName = replaceExtension potFileName ".po"
+-- poFileName :: FilePath
+-- poFileName = replaceExtension potFileName ".po"
 
 moFileName :: FilePath
 moFileName = replaceExtension potFileName ".mo"
@@ -87,40 +87,25 @@ gettextQ  :: String -> Q Exp
 gettextQ str = do
   createPotFile
   loc <- location
-  runIO $ appendFile potFileName $ unlines [
-      "",
-      "#: " ++ (loc_filename loc) ++ ":0", -- TODO line nr or char pos
-      "msgid \"" ++ str ++ "\"",
-      "msgstr \"" ++ str ++ "\""
-      ]
+  runIO $ appendFile potFileName $ unlines $ poEntry loc str
   let trans = TL.toStrict $ G.gettext catalog (packStr str)
   [| trans |]
 
 
-gettext :: QuasiQuoter
-gettext = QuasiQuoter
-  { quoteExp  = gettextQ
-  , quotePat  = error "Usage as a parttern is not supported"
-  , quoteType = error "Usage as a type is not supported"
-  , quoteDec = error "Usage as a decl is not supported"
-
-  }
-
-__ :: QuasiQuoter
-__ = gettext
-
+poEntry :: Loc -> String -> [String]
+poEntry loc msg = [
+      "",
+      "#: " ++ (loc_filename loc) ++ ":0", -- TODO line nr or char pos
+      "msgid " ++ show msg,
+      "msgstr " ++ show msg 
+      ]
 
 gettextsDecs  :: String -> Q [Dec]
 gettextsDecs str = do
   createPotFile
   loc <- location
   let msgs = map splitKeyMsg $ parseLines str  
-  runIO $ appendFile potFileName $ unlines $ concat [[
-      "",
-      "#: " ++ (loc_filename loc) ++ ":0", -- TODO line nr or char pos
-      "msgid " ++ show msg,
-      "msgstr " ++ show msg 
-      ] | (_, msg) <- msgs ]    
+  runIO $ appendFile potFileName $ unlines $ concat [ poEntry loc msg | (_, msg) <- msgs ]    
 
   forM msgs $ \ (key, msg) ->
               let trans = TL.toStrict $ G.gettext catalog (packStr msg) in do
@@ -138,8 +123,9 @@ parseLines text = go [] (lines text)
            if all isSpace line then go acc lines'
              else collect (join acc) [line] lines'
          collect :: ([String] -> [String]) -> [String] -> [String] -> [String]
-         collect j cl [] = go (j cl) [] 
-         collect j cl lines'@(h@(c:d):t) =
+         collect j cl [] = go (j cl) []
+         collect j cl ([]:t) = go (j cl) t
+         collect j cl lines'@((c:d):t) =
                    if isSpace c then collect j ((dropWhile isSpace d):cl) t
                      else go (j cl) lines'
          join acc cl = (intercalate "\n" $ reverse cl):acc
@@ -153,10 +139,14 @@ trim = f . f
    where f = reverse . dropWhile isSpace
 
 
-gettexts :: QuasiQuoter
-gettexts = QuasiQuoter
-  { quoteExp  = error "Usage as a decl is not supported" 
+gettext :: QuasiQuoter
+gettext = QuasiQuoter
+  { quoteExp  = gettextQ
   , quotePat  = error "Usage as a parttern is not supported"
   , quoteType = error "Usage as a type is not supported"
   , quoteDec = gettextsDecs
   }
+
+__ :: QuasiQuoter
+__ = gettext
+         
