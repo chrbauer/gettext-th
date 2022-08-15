@@ -2,23 +2,22 @@ cabal-version:      2.4
 name:               gettext-th
 version:            0.1.0.0
 
--- A short (one-line) description of the package.
--- synopsis:
+synopsis: gettext-th can internationlise a haskell program with gettext at compile time without runtime dependencies
 
 -- A longer description of the package.
--- description:
+description:
+       The [gettext](https://www.gnu.org/software/gettext/) project provides a library and tools for internationalization and localization of software. gettext-th allows you to use the gettext tooling without adding any runtime dependencies because texts are exchanged at compile time. But this also means that you have an application per language.
 
--- A URL where users can report bugs.
--- bug-reports:
+bug-reports: https://github.com/chrbauer/gettext-th/issues
 
 -- The license under which the package is released.
--- license:
+license: BSD-3-Clause
 author:             Christoph Bauer
 maintainer:         mail@christoph-bauer.net
 
 -- A copyright notice.
 -- copyright:
--- category:
+category: i18, Text
 extra-source-files: CHANGELOG.md
 
 library
@@ -38,5 +37,5 @@ library
                     , text
     hs-source-dirs:   src
     default-language: Haskell2010
-    ghc-options: -Wall -fwarn-tabs
+    ghc-options: -Wall -fwarn-tabs -O1
     default-extensions: TemplateHaskell, TupleSections, DeriveLift, RecordWildCards, QuasiQuotes, OverloadedStrings, FlexibleContexts
