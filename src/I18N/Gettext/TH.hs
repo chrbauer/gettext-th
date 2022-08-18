@@ -4,6 +4,7 @@ where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
+import Instances.TH.Lift()
 import System.IO.Unsafe
 import System.Directory
 import Data.IORef
