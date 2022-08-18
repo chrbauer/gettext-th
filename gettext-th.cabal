@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               gettext-th
-version:            0.1.0.2
+version:            0.1.0.3
 
 synopsis: gettext-th can internationalise a haskell program without runtime dependencies
 
@@ -17,7 +17,7 @@ maintainer:         mail@christoph-bauer.net
 
 -- A copyright notice.
 -- copyright:
-category: i18n Text
+category: i18n, Text
 extra-source-files: CHANGELOG.md, README.md
 
 library

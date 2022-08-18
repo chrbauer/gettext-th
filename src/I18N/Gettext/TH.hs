@@ -110,8 +110,7 @@ gettextsDecs str = do
 
   forM msgs $ \ (key, msg) ->
               let trans = TL.toStrict $ G.gettext catalog (packStr msg) in do
-                 e <-  [| trans |]
-                 return $ FunD (mkName key) [Clause [] (NormalB e) []]
+                 funD (mkName key) [clause [] (normalB [| trans |]) []]
                  
 
          
