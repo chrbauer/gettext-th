@@ -107,6 +107,7 @@ gettextQ str = do
   let trans = TL.toStrict $ G.gettext catalog (packStr str)
   [| trans |]
 
+quote :: String -> String
 quote s =  '"':escape s
   where escape [] = "\""
         escape ('"':s') = '\\':'"':escape s'
