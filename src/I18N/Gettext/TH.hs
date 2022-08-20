@@ -4,6 +4,8 @@ where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
+import Language.Haskell.TH.Syntax
+
 import Instances.TH.Lift()
 import System.IO.Unsafe
 import System.Directory
@@ -12,6 +14,8 @@ import Control.Monad
 import Data.Bifunctor
 import Data.Char (isSpace)
 import Data.List
+import Data.Set (Set)
+import qualified Data.Set as S
 
 import qualified Data.ByteString as B
 import qualified Data.Text as T
@@ -21,11 +25,11 @@ import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Gettext as G
 import Data.Gettext (Catalog, loadCatalog)
 import System.FilePath.Posix
+import System.IO
 
-
-{-# NOINLINE firstCall #-}
-firstCall :: IORef Bool
-firstCall = unsafePerformIO $ newIORef True
+{-# NOINLINE knownMsgs #-}
+knownMsgs :: IORef (Set String)
+knownMsgs = unsafePerformIO $ newIORef S.empty
 
 potFileName :: FilePath
 potFileName = "po/messages.pot"
@@ -65,30 +69,41 @@ header = unlines [
   "\"Content-Transfer-Encoding: 8bit\\n\""
   ]
 
+
+
+
+writeFileUtf8 :: FilePath -> IOMode -> String -> IO ()
+writeFileUtf8 f mode txt = withFile f mode (\ hdl -> do
+                                               hSetEncoding hdl utf8
+                                               hPutStr hdl txt)  
+
 createPotFile :: Q ()
 createPotFile = do
-  runIO $ do
-    f <- readIORef firstCall
-    when f $ do
-      writeIORef firstCall False
+  fn <- runIO $ do
       createDirectoryIfMissing True (takeDirectory potFileName)
       potE <- doesFileExist potFileName    
       when potE $
         renameFile potFileName (potFileName ++ ".bak")
 
-      writeFile potFileName header
-    --addDependentFile poFileName
+      writeFileUtf8 potFileName WriteMode header
+      makeAbsolute moFileName
+  addDependentFile fn
 
 
 packStr :: String -> B.ByteString
 packStr = encodeUtf8 . T.pack
 
-
 gettextQ  :: String -> Q Exp
 gettextQ str = do
-  createPotFile
-  loc <- location
-  runIO $ appendFile potFileName $ unlines $ poEntry loc str
+  kmsgs <- runIO $ do
+     kmsgs <- readIORef knownMsgs
+     writeIORef knownMsgs (S.insert str kmsgs)
+     return kmsgs
+
+  when (S.null kmsgs) createPotFile
+  when (str `S.notMember` kmsgs) $ do
+    loc <- location
+    runIO $ writeFileUtf8 potFileName AppendMode $ unlines $ poEntry loc str
   let trans = TL.toStrict $ G.gettext catalog (packStr str)
   [| trans |]
 
@@ -103,10 +118,15 @@ poEntry loc msg = [
 
 gettextsDecs  :: String -> Q [Dec]
 gettextsDecs str = do
-  createPotFile
-  loc <- location
   let msgs = map splitKeyMsg $ parseLines str  
-  runIO $ appendFile potFileName $ unlines $ concat [ poEntry loc msg | (_, msg) <- msgs ]    
+  kmsgs <- runIO $ do
+     kmsgs <- readIORef knownMsgs
+     writeIORef knownMsgs (foldl' (\ acc (_, msg) -> msg `S.insert` acc) kmsgs msgs)
+     return kmsgs
+  when (S.null kmsgs) createPotFile
+  loc <- location
+
+  runIO $ appendFile potFileName $ unlines $ concat [ poEntry loc msg | (_, msg) <- msgs, msg `S.notMember` kmsgs ]    
 
   forM msgs $ \ (key, msg) ->
               let trans = TL.toStrict $ G.gettext catalog (packStr msg) in do
@@ -131,7 +151,7 @@ parseLines text = go [] (lines text)
          join acc cl = (intercalate "\n" $ reverse cl):acc
 
 splitKeyMsg :: String -> (String, String)        
-splitKeyMsg line =  bimap trim (trim . tail)$ span (/= ':') line 
+splitKeyMsg line =  bimap trim (trim . tail) $ span (/= ':') line 
   
 
 trim :: String -> String
@@ -142,7 +162,7 @@ trim = f . f
 gettext :: QuasiQuoter
 gettext = QuasiQuoter
   { quoteExp  = gettextQ
-  , quotePat  = error "Usage as a parttern is not supported"
+  , quotePat  = error "Usage as a pattern is not supported"
   , quoteType = error "Usage as a type is not supported"
   , quoteDec = gettextsDecs
   }

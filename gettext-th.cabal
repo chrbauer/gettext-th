@@ -30,6 +30,7 @@ library
     -- other-extensions:
     build-depends:    base  >= 4 && < 5
                     , bytestring
+                    , containers
                     , directory
                     , filepath
                     , haskell-gettext
