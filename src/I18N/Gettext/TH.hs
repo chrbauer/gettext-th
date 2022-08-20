@@ -65,7 +65,7 @@ header = unlines [
   "\"Language-Team: LANGUAGE <LL@li.org>\\n\"",
   "\"Language: \\n\"",
   "\"MIME-Version: 1.0\\n\"",
-  "\"Content-Type: text/plain; charset=CHARSET\\n\"",
+  "\"Content-Type: text/plain; charset=utf-8\\n\"",
   "\"Content-Transfer-Encoding: 8bit\\n\""
   ]
 
@@ -107,13 +107,20 @@ gettextQ str = do
   let trans = TL.toStrict $ G.gettext catalog (packStr str)
   [| trans |]
 
+quote s =  '"':escape s
+  where escape [] = "\""
+        escape ('"':s') = '\\':'"':escape s'
+        escape ('\n':s') = '\\':'n':escape s'
+        escape ('\r':s') = escape s'
+        escape (c:s') = c:escape s'
+        
 
 poEntry :: Loc -> String -> [String]
 poEntry loc msg = [
       "",
       "#: " ++ (loc_filename loc) ++ ":0", -- TODO line nr or char pos
-      "msgid " ++ show msg,
-      "msgstr " ++ show msg 
+      "msgid " ++ quote msg,
+      "msgstr " ++ quote msg 
       ]
 
 gettextsDecs  :: String -> Q [Dec]
@@ -126,7 +133,7 @@ gettextsDecs str = do
   when (S.null kmsgs) createPotFile
   loc <- location
 
-  runIO $ appendFile potFileName $ unlines $ concat [ poEntry loc msg | (_, msg) <- msgs, msg `S.notMember` kmsgs ]    
+  runIO $ writeFileUtf8 potFileName AppendMode $ unlines $ concat [ poEntry loc msg | (_, msg) <- msgs, msg `S.notMember` kmsgs ]    
 
   forM msgs $ \ (key, msg) ->
               let trans = TL.toStrict $ G.gettext catalog (packStr msg) in do
