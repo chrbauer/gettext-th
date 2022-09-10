@@ -92,8 +92,10 @@ createPotFile = do
         renameFile potFileName (potFileName ++ ".bak")
 
       writeFileUtf8 potFileName WriteMode header
-      makeAbsolute moFileName
-  addDependentFile fn
+      moE <- doesFileExist moFileName
+      if moE then makeAbsolute moFileName
+        else return ""
+  when (not $ null fn) $ addDependentFile fn
 
 
 packStr :: String -> B.ByteString
