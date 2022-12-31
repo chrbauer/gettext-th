@@ -93,7 +93,7 @@ createPotFile = do
       when potE $
         renameFile potFn (potFn ++ ".bak")
 
-      writeFileUtf8 potFileName WriteMode header
+      writeFileUtf8 potFn WriteMode header
       moE <- doesFileExist moFileName
       if moE then makeAbsolute moFileName
         else return ""
@@ -118,7 +118,7 @@ gettextQ str = do
   when (str `S.notMember` kmsgs) $ do
     loc <- location
     runIO $ writeFileUtf8 (potFileName loc) AppendMode $ unlines $ poEntry loc str
-  let trans = TL.toStrict $ G.gettext catalog (packStr str)
+  let trans = lookupText str
   [| trans |]
 
 quote :: String -> String
