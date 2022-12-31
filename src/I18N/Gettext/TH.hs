@@ -31,15 +31,15 @@ import System.IO
 knownMsgs :: IORef (Set String)
 knownMsgs = unsafePerformIO $ newIORef S.empty
 
-potFileName :: FilePath
-potFileName = "po/messages.pot"
+potFileName :: Loc -> FilePath
+potFileName loc = "po/messages_" <> takeBaseName (loc_filename loc) <> ".pot"
 
 
 -- poFileName :: FilePath
 -- poFileName = replaceExtension potFileName ".po"
 
 moFileName :: FilePath
-moFileName = replaceExtension potFileName ".mo"
+moFileName = "po/messages.mo"
 
 {-# NOINLINE catalog #-}
 catalog :: Catalog
@@ -79,15 +79,17 @@ writeFileUtf8 f mode txt = withFile f mode (\ hdl -> do
 
 createPotFile :: Q ()
 createPotFile = do
-  fn <- runIO $ do
-      createDirectoryIfMissing True (takeDirectory potFileName)
-      potE <- doesFileExist potFileName    
+  loc <- location
+  let potFn = potFileName loc
+  moFn <- runIO $ do
+      createDirectoryIfMissing True (takeDirectory potFn)
+      potE <- doesFileExist potFn   
       when potE $
-        renameFile potFileName (potFileName ++ ".bak")
+        renameFile potFn (potFn ++ ".bak")
 
-      writeFileUtf8 potFileName WriteMode header
+      writeFileUtf8 potFn WriteMode header
       makeAbsolute moFileName
-  addDependentFile fn
+  addDependentFile moFn
 
 
 packStr :: String -> B.ByteString
@@ -103,7 +105,7 @@ gettextQ str = do
   when (S.null kmsgs) createPotFile
   when (str `S.notMember` kmsgs) $ do
     loc <- location
-    runIO $ writeFileUtf8 potFileName AppendMode $ unlines $ poEntry loc str
+    runIO $ writeFileUtf8 (potFileName loc) AppendMode $ unlines $ poEntry loc str
   let trans = TL.toStrict $ G.gettext catalog (packStr str)
   [| trans |]
 
@@ -134,7 +136,7 @@ gettextsDecs str = do
   when (S.null kmsgs) createPotFile
   loc <- location
 
-  runIO $ writeFileUtf8 potFileName AppendMode $ unlines $ concat [ poEntry loc msg | (_, msg) <- msgs, msg `S.notMember` kmsgs ]    
+  runIO $ writeFileUtf8 (potFileName loc) AppendMode $ unlines $ concat [ poEntry loc msg | (_, msg) <- msgs, msg `S.notMember` kmsgs ]    
 
   forM msgs $ \ (key, msg) ->
               let trans = TL.toStrict $ G.gettext catalog (packStr msg) in do
