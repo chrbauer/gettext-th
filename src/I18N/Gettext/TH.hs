@@ -17,7 +17,10 @@ import Data.List
 import Data.Set (Set)
 import qualified Data.Set as S
 
+--import Control.Exception (catch, IOException)
+
 import qualified Data.ByteString as B
+import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Data.Text.Encoding (encodeUtf8)
@@ -42,8 +45,11 @@ moFileName :: FilePath
 moFileName = "po/messages.mo"
 
 {-# NOINLINE catalog #-}
-catalog :: Catalog
-catalog = unsafePerformIO $ loadCatalog moFileName
+catalog :: Maybe Catalog
+catalog = unsafePerformIO $ do
+  fe <- doesFileExist moFileName
+  if fe then Just <$> loadCatalog moFileName
+   else return Nothing
 
 
 header :: String
@@ -87,13 +93,19 @@ createPotFile = do
       when potE $
         renameFile potFn (potFn ++ ".bak")
 
-      writeFileUtf8 potFn WriteMode header
-      makeAbsolute moFileName
-  addDependentFile moFn
+      writeFileUtf8 potFileName WriteMode header
+      moE <- doesFileExist moFileName
+      if moE then makeAbsolute moFileName
+        else return ""
+  when (not $ null fn) $ addDependentFile fn
 
 
 packStr :: String -> B.ByteString
 packStr = encodeUtf8 . T.pack
+
+lookupText :: String -> Text
+lookupText str = maybe (T.pack str) (\ c -> TL.toStrict $ G.gettext c $ packStr str) catalog
+  
 
 gettextQ  :: String -> Q Exp
 gettextQ str = do
@@ -139,7 +151,7 @@ gettextsDecs str = do
   runIO $ writeFileUtf8 (potFileName loc) AppendMode $ unlines $ concat [ poEntry loc msg | (_, msg) <- msgs, msg `S.notMember` kmsgs ]    
 
   forM msgs $ \ (key, msg) ->
-              let trans = TL.toStrict $ G.gettext catalog (packStr msg) in do
+              let trans = lookupText msg in do
                  funD (mkName key) [clause [] (normalB [| trans |]) []]
                  
 
