@@ -17,7 +17,10 @@ import Data.List
 import Data.Set (Set)
 import qualified Data.Set as S
 
+--import Control.Exception (catch, IOException)
+
 import qualified Data.ByteString as B
+import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Data.Text.Encoding (encodeUtf8)
@@ -42,8 +45,11 @@ moFileName :: FilePath
 moFileName = "po/messages.mo"
 
 {-# NOINLINE catalog #-}
-catalog :: Catalog
-catalog = unsafePerformIO $ loadCatalog moFileName
+catalog :: Maybe Catalog
+catalog = unsafePerformIO $ do
+  fe <- doesFileExist moFileName
+  if fe then Just <$> loadCatalog moFileName
+   else return Nothing
 
 
 header :: String
@@ -75,7 +81,7 @@ header = unlines [
 writeFileUtf8 :: FilePath -> IOMode -> String -> IO ()
 writeFileUtf8 f mode txt = withFile f mode (\ hdl -> do
                                                hSetEncoding hdl utf8
-                                               hPutStr hdl txt)  
+                                               hPutStr hdl txt)
 
 createPotFile :: Q ()
 createPotFile = do
@@ -83,17 +89,23 @@ createPotFile = do
   let potFn = potFileName loc
   moFn <- runIO $ do
       createDirectoryIfMissing True (takeDirectory potFn)
-      potE <- doesFileExist potFn   
+      potE <- doesFileExist potFn
       when potE $
         renameFile potFn (potFn ++ ".bak")
 
-      writeFileUtf8 potFn WriteMode header
-      makeAbsolute moFileName
-  addDependentFile moFn
+      writeFileUtf8 potFileName WriteMode header
+      moE <- doesFileExist moFileName
+      if moE then makeAbsolute moFileName
+        else return ""
+  unless (null moFn) $ addDependentFile moFn
 
 
 packStr :: String -> B.ByteString
 packStr = encodeUtf8 . T.pack
+
+lookupText :: String -> Text
+lookupText str = maybe (T.pack str) (\ c -> TL.toStrict $ G.gettext c $ packStr str) catalog
+
 
 gettextQ  :: String -> Q Exp
 gettextQ str = do
@@ -116,19 +128,19 @@ quote s =  '"':escape s
         escape ('\n':s') = '\\':'n':escape s'
         escape ('\r':s') = escape s'
         escape (c:s') = c:escape s'
-        
+
 
 poEntry :: Loc -> String -> [String]
 poEntry loc msg = [
       "",
       "#: " ++ (loc_filename loc) ++ ":0", -- TODO line nr or char pos
       "msgid " ++ quote msg,
-      "msgstr " ++ quote msg 
+      "msgstr " ++ quote msg
       ]
 
 gettextsDecs  :: String -> Q [Dec]
 gettextsDecs str = do
-  let msgs = map splitKeyMsg $ parseLines str  
+  let msgs = map splitKeyMsg $ parseLines str
   kmsgs <- runIO $ do
      kmsgs <- readIORef knownMsgs
      writeIORef knownMsgs (foldl' (\ acc (_, msg) -> msg `S.insert` acc) kmsgs msgs)
@@ -136,14 +148,14 @@ gettextsDecs str = do
   when (S.null kmsgs) createPotFile
   loc <- location
 
-  runIO $ writeFileUtf8 (potFileName loc) AppendMode $ unlines $ concat [ poEntry loc msg | (_, msg) <- msgs, msg `S.notMember` kmsgs ]    
+  runIO $ writeFileUtf8 (potFileName loc) AppendMode $ unlines $ concat [ poEntry loc msg | (_, msg) <- msgs, msg `S.notMember` kmsgs ]
 
   forM msgs $ \ (key, msg) ->
-              let trans = TL.toStrict $ G.gettext catalog (packStr msg) in do
+              let trans = lookupText msg in do
                  funD (mkName key) [clause [] (normalB [| trans |]) []]
-                 
 
-         
+
+
 
 parseLines :: String -> [String]
 parseLines text = go [] (lines text)
@@ -160,9 +172,9 @@ parseLines text = go [] (lines text)
                      else go (j cl) lines'
          join acc cl = (intercalate "\n" $ reverse cl):acc
 
-splitKeyMsg :: String -> (String, String)        
-splitKeyMsg line =  bimap trim (trim . tail) $ span (/= ':') line 
-  
+splitKeyMsg :: String -> (String, String)
+splitKeyMsg line =  bimap trim (trim . tail) $ span (/= ':') line
+
 
 trim :: String -> String
 trim = f . f
@@ -179,4 +191,4 @@ gettext = QuasiQuoter
 
 __ :: QuasiQuoter
 __ = gettext
-         
+
